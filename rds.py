@@ -11,7 +11,7 @@ UTC_Start = UTC_End - datetime.timedelta(minutes=25)
 
 StartTime = datetime.datetime.strftime(UTC_Start, '%Y-%m-%dT%H:%MZ')
 EndTime = datetime.datetime.strftime(UTC_End, '%Y-%m-%dT%H:%MZ')
-client = AcsClient('LTAIDZmxNTfef5Ms', 'GRbbRRKWwtS6ZuItQ55eRM25OUIj2t', 'cn-hangzhou')
+client = AcsClient('***', '***', 'cn-hangzhou')
 
 request = DescribeResourceUsageRequest.DescribeResourceUsageRequest()
 #request.set_accept_format('json')
