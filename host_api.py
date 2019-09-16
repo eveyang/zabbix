@@ -2,7 +2,7 @@ import json
 import requests
 import urllib.request, urllib.error, urllib.parse
 # coding=utf-8
-url = 'http://114.116.233.92/zabbix/api_jsonrpc.php'
+url = 'http://IP/zabbix/api_jsonrpc.php'
 headers = {
         'Content-Type': 'application/json-rpc'
     }
@@ -13,7 +13,7 @@ def auth_token():
         "method": "user.login",
         "params": {
             "user": "Admin",
-            "password": "ss100515"
+            "password": "password"
         },
         "id": 1,
         "auth": None,
