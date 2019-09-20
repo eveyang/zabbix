@@ -122,7 +122,7 @@ while True:
          value['port'].sort()
          msg_port=str(value['port']).replace("'","").replace("[","").replace("]","").replace(" ","")
          message=(msg_ip+'端口不通的为'+msg_port)
-         db = pymysql.connect("119.3.187.237", "root", "Ss100515!", "server_control")
+         db = pymysql.connect("￥￥￥", "root", "￥￥￥", "server_control")
          check_sql="select * FROM tb_problem WHERE problem_name ='%s' AND flg=0 "%(message)
          sql = "insert ignore into tb_problem(problem_name,severity,acknowledged,flg,back_flg) values('%s',4,0,0,0)"%( message)
          update_sql="update tb_problem SET last_date='%s' where tb_problem='%s'"(clock,message)
