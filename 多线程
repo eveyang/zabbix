@@ -1,121 +1,167 @@
-#coding=utf-8
-import sys
-import requests,re,pymysql,time,datetime
-import threading
+# coding=utf-8
+import requests, re, pymysql, time, datetime, threading,json
 import queue as Queue
-import os
-start=time.time()
-#ip_url='http://'
-domain=[]
-port=[]
-error=[]
-start = time.time()
-def insert_mysql():
-    info = 'docker端口检查异常的地址:'
-    info2=' '.join(error)
-    clock=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    db = pymysql.connect("******","root","******","server_control" )
-# 使用cursor()方法获取操作游标
-    cursor = db.cursor()
-# SQL 插入语句
-    sql="insert into tb_problem(clock,problem_name,severity,acknowledged,flg,back_flg) values('%s','%s',4,0,0,0)"%(clock,info+info2)
-    try:
-   # 执行sql语句
-        cursor.execute(sql)
-   # 执行sql语句
-        db.commit()
-        print("报警信息入库成功")
-        time.sleep(5)
-    except:
-   # 发生错误时回滚
-        db.rollback()
-# 关闭数据库连接
-    db.close()
-def getHttpStatusCode(url):
+while True:
+   clock = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+   start = time.time()
+   ip_url = 'http://'
+   api = '/api/train/app/control?datatypeflag=GetRepNature&jsonStr='
+   web_docker_path = '/Reptile/'
+   domain = []
+   UserAgent = []
+# web_domain=[]
+   error = []
+   def check_config():
+      with open('app.txt', 'r') as ip:
+        for row in ip.readlines():
+            row = row.split(' ')
+            url = str(row[0]).strip('\n')
+            port = str(row[1]).strip('\n')
+            port_total = (int(port) + 8080)
+            for web in range(8080, port_total):
+                domain.append(ip_url + url + ':' + str(web) + api)
+      ip.close()
+      with open('web_docker.txt', 'r') as web_docker_ip:
+        for line in web_docker_ip.readlines():
+            row = line.split(' ')
+            web_ip = str(row[0]).strip('\n')
+            web_port = str(row[1]).strip('\n')
+            web_port_total = (int(web_port) + 8080)
+            for web in range(8080, int(web_port_total)):
+                domain.append(ip_url + web_ip + ':' + str(web) + web_docker_path)
+      web_docker_ip.close()
+
+
+   def getHttpStatusCode(url):
     try:
         request = requests.get(url)
         httpStatusCode = request.status_code
         return httpStatusCode
     except requests.exceptions.HTTPError as e:
         return e
-def isIP(str):
-    p = re.compile('^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$')
-    if p.match(str):
-        return True
-    else:
-        print("IP地址%s不合法"%(str))
-        exit(0)
 
-ip=input('请输入IP地址，多个IP地址以空格隔开:').split( )
-for i in ip:
-    isIP(str=i)
 
-for value in range(int(input('start:')),int(input('end:'))):
-    port.append(value)
-for i in port:
-    for j in ip:
-        domain.append(str(j)+':'+str(i))
-print(domain)
-class myThread(threading.Thread):
+   class myThread(threading.Thread):
     def __init__(self, name, q):
         threading.Thread.__init__(self)
         self.name = name
         self.q = q
 
     def run(self):
-        print("Starting " + self.name)
+        # print("Starting " + self.name)
         while True:
             try:
                 crawler(self.name, self.q)
             except:
                 break
-        print("Exiting " + self.name)
+        # print("Exiting " + self.name)
 
 
-def crawler(threadName, q):
+   def crawler(threadName, q):
     # 从队列里获取url
     url = q.get(timeout=2)
     try:
-        r = requests.get(url, timeout=5).status_code
-        # 打印：队列长度，线程名，响应码，正在访问的url
-        if r == 404:
+        r = requests.get(url, timeout=5, headers={'Connection': 'close'}).status_code
+        s = requests.session()
+        # requests.adapters.DEFAULT_RETRIES = 5
+        s.keep_alive = False
+        if r == 200:
             pass
     except Exception as e:
-        error.append(url)
+        # print(e)
+        # error.clear()
+        error.append(str(url).strip(ip_url + api))
 
 
+   def start_check():
+    workQueue = Queue.Queue(1000)
+    threadList = []
+    for line in range(len(domain)):
+        threadList.append(line)
+    # 线程池
+    threads = []
 
+    # 创建新线程
+    for tName in threadList:
+        thread = myThread(tName, workQueue)
+        thread.start()
+        threads.append(thread)
 
-# 设置队列长度
-workQueue = Queue.Queue(100000)
-threadList=[]
-for line in range(len(domain)):
-    threadList.append(line)
-# 线程池
-threads = []
+    # 将url填充到队列
+    for url in domain:
+        workQueue.put(url)
 
-# 创建新线程
-for tName in threadList:
-    thread = myThread(tName, workQueue)
-    thread.start()
-    threads.append(thread)
+    # 等待所有线程完成
+    for t in threads:
+        t.join()
 
-# 将url填充到队列
-for url in domain:
-    workQueue.put(url)
+   check_config()
+   start_check()
+   end = time.time()
+   #print("不通的地址为%s" % (error))
+   print('多线程总耗时为：', end - start)
+   print('Exiting Main Thread')
+   result_dict = []
+   if len(error) == 0:
+      print('端口检查完毕，无异常')
+      time.sleep(5)
+   else:
+      pass
+      for s in error:
+         result_dict.append({"host": s.split(':')[0], "port": s.split(':')[1]})
 
-# 等待所有线程完成
-for t in threads:
-    t.join()
+      result = {}
+      for row in result_dict:
+         host = row['host']
+         if host in result:
+            result[host]['port'].append(row['port'])
+         else:
+            result[host] = {'host': row['host'], 'port': [row['port'], ]}
+      for value in result.values():
+         msg_ip=str(value['host'])
+         value['port'].sort()
+         msg_port=str(value['port']).replace("'","").replace("[","").replace("]","").replace(" ","")
+         message=(msg_ip+'端口不通的为'+msg_port)
+         db = pymysql.connect("119.3.187.237", "root", "Ss100515!", "server_control")
+         check_sql="select * FROM tb_problem WHERE problem_name ='%s' AND flg=0 "%(message)
+         sql = "insert ignore into tb_problem(problem_name,severity,acknowledged,flg,back_flg) values('%s',4,0,0,0)"%( message)
+         update_sql="update tb_problem SET last_date='%s' where tb_problem='%s'"(clock,message)
+         cursor = db.cursor()
+         cursor.execute(check_sql)
+         db.commit()
+         data=cursor.fetchall()
+         if len(data) == 0:
+            cursor.execute(sql)
+            db.commit()
+            print("insert")
+         else:
+            cursor.execute(update_sql)
+            db.commit()
+            print("update")
+         db.close()
+'''
+# 使用cursor()方法获取操作游标
 
-end = time.time()
-#print("不通的地址为%s"%(error))
-print('多线程总耗时为：', end - start)
-print('Exiting Main Thread')
-if len(error) == 0:
-    print('端口检查完毕，无异常')
-    time.sleep(5)
+cursor = db.cursor()
+# SQL 插入语句
+check_sql="SELECT count(problem_name) FROM tb_problem WHERE problem_name like  '%s' and flg=0 " %(new_message)
+
+sql = "INSERT ignore  tb_problem(`clock`, `problem_name`, `severity`, `acknowledged`, `last_date`, `flg`, `back_flg`) VALUES ('%s', '%s', 4, 0, '%s', 0, 0 )"\
+%(clock,new_message,clock,)
+
+cursor.execute(check_sql)
+
+db.commit()
+data=cursor.fetchall()
+
+print(data)
+if data[0][0] == 0:
+print("pass")
+
+print("报警入库成功%s"%(data))
 else:
-    pass
-    #insert_mysql()
+cursor.execute(sql)
+db.commit()
+#print("已经插入，忽略数据库操作")
+'''
 
