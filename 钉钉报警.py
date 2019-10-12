@@ -17,7 +17,7 @@ def msg(text):
         "msgtype": "text",
         "at": {
             "atMobiles": [
-                "18654388344"
+                "telephone number"
             ],
             "isAtAll": True
         },
