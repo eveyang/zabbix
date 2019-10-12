@@ -1,0 +1,59 @@
+#!/usr/local/python env
+# -*- coding: utf-8 -*-
+from flask import Flask
+from flask import request
+import pymysql,urllib,datetime,time
+host = '*.*.*.*'
+user = 'root'
+password = 'password'
+database='databasename'
+app = Flask(__name__)
+app.debug = True
+@app.route('/callback', methods=['POST'])
+def json_args():
+    userId=request.form.get("userId")
+    alertName=request.form.get("alertName")
+    alertState=request.form.get("alertState")
+    timestamp=request.form.get("timestamp")
+    dimensions=request.form.get("dimensions")
+    expression=request.form.get("expression")
+    curValue=request.form.get("curValue")
+    instanceName=request.form.get("instanceName")
+    metricName=request.form.get("metricName")
+    metricProject=request.form.get("metricProject")
+    triggerLevel=request.form.get("triggerLevel")
+    instanceName=request.form.get("instanceName")
+    if triggerLevel=='WARN':
+        level=4
+    else:
+        level=2
+    status='sucess'
+    msg=("【阿里云监控】"+'服务器:'+ str(instanceName)+"报警:"+str(alertName)+"当前值:"+str(curValue)+"服务器ID:"+str(dimensions))
+    print(instanceName)
+
+    #timeStamp = float(timestamp/ 1000)
+    #timeArray = time.localtime(timeStamp)
+    otherStyleTime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    print(type(timestamp))
+    db= pymysql.connect(host, user, password, database)
+    cursor = db.cursor()
+    check_sql='select count(*) FROM tb_problem WHERE problem_name="%s"'%((str(dimensions)+'%'))
+    in_sql = "INSERT INTO tb_problem(clock,severity, acknowledged, problem_name,last_date,flg,back_flg) VALUES ('%s','%s', 0, '%s','%s', 0, 0)"%(otherStyleTime,level,msg,otherStyleTime)
+    cursor.execute(check_sql)
+    data=cursor.fetchall()
+    print(data[0][0])
+    if data[0][0]==0:
+        cursor.execute(in_sql)
+        db.commit()
+    else:
+        cursor.execute("update tb_problem set last_date='%s' where tb_problem ='%s' "%(otherStyleTime,msg))
+        db.commit()
+    db.close()
+
+    #print('【阿里云监控】 %s ,当前报警预警值:%s,报警服务器ID:%s'%(alertName,expression,dimensions))
+
+    return status
+if __name__ == '__main__':
+    #app.config['JSON_AS_ASCII'] = False
+    app.run(host='ip',port=port)
+
